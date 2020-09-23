@@ -1,0 +1,14 @@
+aiohttp
+async-timeout
+attrs
+chardet
+discord.py
+discord_webhook
+idna
+idna-ssl
+multidict
+pip
+python-dotenv
+setuptools
+typing-extensions
+yarl
