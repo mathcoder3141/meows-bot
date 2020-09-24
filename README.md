@@ -1,9 +1,9 @@
 # meows-bot
 
-A bot (Spudnik) to help moderate to moews server to help keep track of bumping and keep us on track along with backing 
-up Auttaja
+A discord bot (Spudnik) built from scratch to help moderate to moews server to back up another bot we use (Auttaja.) 
+
+This bot helps bring a lot of joy to the server members as well as a fun project for me to do while learning how to use `discord.py`
 
 # Todo:
-* Include logic to prompt potential meows to introduce themselves and how they found the server.
 * Potential auto modding processing
 * Once member is approved change from `is dis meow` to `member`
