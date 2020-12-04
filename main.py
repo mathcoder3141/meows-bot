@@ -1,96 +1,219 @@
 import discord
 import os
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
-from discord.ext import commands
 import asyncio
-# 🔐🤖👾
+from dotenv import load_dotenv
+from datetime import datetime
+from discord.ext import commands
+from discord.errors import Forbidden
+from discord import HTTPException
 
 load_dotenv()
-
-terminal = int(os.getenv('terminal'))
-guild_id = int(os.getenv('server_id'))
+intents = discord.Intents.default()
+intents.members = True
+intents.presences = True
+intents.guilds = True
+bot = commands.Bot(command_prefix='.', intents=intents)
 bot_token = os.getenv('bot_token')
-best_dog = int(os.getenv('best_dog'))
-meowking = int(os.getenv('meowking'))
-mathman = int(os.getenv('mathman'))
-erebus = int(os.getenv('erebus'))
-haagen = int(os.getenv('haagen'))
-general = int(os.getenv('general'))
-client = discord.Client()
+guild_id = int(os.getenv('server_id'))
+meow_id = int(os.getenv("entry_role"))
+member_id = int(os.getenv("member_role"))
+mods = int(os.getenv("mods"))
 
 
-@client.event
+@bot.event
 async def on_ready():
-    print(f'We have logged in as {client.user}')
+    print(f'We have logged in as {bot.user}')
 
 
-@client.event
-async def on_message(message):
-    global terminal
-    server = client.get_guild(guild_id)
-    terminal = client.get_channel(terminal)
-    if message.content == '!purgeall':
-        await message.channel.purge(limit=125)
-    elif message.content == '!hello':
-        await message.channel.send("Hi!")  # if the user says !hello, we will send back hi
-    elif message.content == '!woof':
-        await message.channel.send(f'<@{best_dog}>, you are best meow. _meows erratically_')
-    elif message.content == '!users':
-        await message.channel.purge(limit=1)
-        await message.channel.send(f'# of Members: {server.member_count}')
-    elif message.content == '!meowking':
-        await message.channel.purge(limit=1)
-        await message.channel.send(f'<@{meowking}> Raid/Help/Emergency')
-    elif "guys" in message.content:
-        await message.channel.send('Hi! "Guys" is an inherently gendered pronoun, even if you didn\'t mean it that '
-                                   'way. And since we have lots of stellar folks of all genders in this discord, we '
-                                   'want to be inclusive of all. "Everyone", "folks", "team", and "y\'all" are all '
-                                   'great replacements. :heart: Spudnik')
-    elif message.content == '!meow':
-        await message.channel.send('https://www.youtube.com/watch?v=X1kOBNWQO0E')
-    elif message.content == '!help':
-        embed = discord.Embed(title='Help with Spudnik', description='Spudnik\'s commands')
-        embed.add_field(name='!purgeall', value='Deletes last 125 messages.')
-        embed.add_field(name='!hello', value='Spudnik will say hi back.')
-        embed.add_field(name='!woof', value='Tags dog and tells him he\'s a good boy then barks erratically.')
-        embed.add_field(name='!users', value='Displays number of members in server.')
-        embed.add_field(name='!meowking', value='Tags Meowking. Use in emergency only.')
-        embed.add_field(name='!meow', value='Provides a link to Rosini\'s meow choir piece.')
-        embed.add_field(name='!help', value='Displays Spudnik\'s commands.')
-        await message.channel.send(content=None, embed=embed)
+@bot.command()
+async def ping(ctx):
+    await ctx.send(f'{bot.ws.latency * 1000.0:.2f} ms')
 
 
-@client.event
+@bot.command()
+async def purge(ctx, lim: int):
+    await ctx.message.channel.purge(limit=lim)
+
+
+@bot.command()
+async def meow(ctx):
+    await ctx.send("Meow!")
+
+
+@bot.command()
+async def users(ctx):
+    server = bot.get_guild(guild_id)
+    await ctx.message.channel.purge(limit=1)
+    await ctx.message.channel.send(f'# of Members: {server.member_count}')
+
+
+@bot.command()
+async def kitty(ctx):
+    await ctx.message.channel.send('https://www.youtube.com/watch?v=SaA_cs4WZHM')
+
+
+@bot.command()
+async def woof(ctx):
+    best_dog = int(os.getenv('best_dog'))
+    await ctx.message.channel.send(f'<@{best_dog}>, you are best meow. _meows erratically_')
+    await ctx.message.channel.send("https://tenor.com/view/excited-dog-happy-gif-15784013")
+
+
+@bot.command()
+async def meowking(ctx):
+    meow_king = int(os.getenv('meowking'))
+    await ctx.message.channel.purge(limit=1)
+    await ctx.message.channel.send(f'<@{meow_king}> Raid/Help/Emergency')
+
+
+@bot.command()
+async def command(ctx):
+    embed = discord.Embed(title='Help with Bearcat', description='Bearcat\'s commands', color=discord.Colour.blue())
+    embed.add_field(name='.commands', value='Displays Bearcat\'s commands.')
+    embed.add_field(name='.kitty', value='Provides a link to the kitty cat dance.')
+    embed.add_field(name='.math', value='Sends lytics from man\'s not hot.')
+    embed.add_field(name='.meow', value='Bearcat will meow back.')
+    embed.add_field(name='.meowking', value='Tags Meowking. Use in emergency only.')
+    embed.add_field(name='.purgeall', value='Deletes last 125 messages.')
+    embed.add_field(name='.ping', value='Displays how long it takes for communication between bot and Discord API.')
+    embed.add_field(name='.woof', value='Tags dog and tells him he\'s a good boy then barks erratically.')
+    embed.add_field(name='.users', value='Displays number of members in server.')
+    await ctx.message.channel.send(content=None, embed=embed)
+
+
+@bot.command()
+@commands.has_any_role('Head Meow in Charge (Admin)', 'Meow King (Owner)', 'Meow Control (Mod)')
+async def kick(ctx, member: discord.Member, *, reason=None):
+    if reason is None:
+        await ctx.send(f'{ctx.author.mention}, please provide a reason for kicking')
+    else:
+        try:
+            await member.kick(reason=reason)
+            dm = f'You have been kicked from {ctx.guild.name} for {reason}'
+            await member.send(dm)
+            await ctx.message.send(f'{member} has been successfully kicked')
+        except Forbidden:
+            await ctx.send("Bitch pls. You thought")
+
+
+@bot.command()
+@commands.has_any_role('Meow King (Owner)', 'Head Meow in Charge (Admin)', 'Meow Control (Mod)')
+async def ban(ctx, member: discord.Member, *, reason=None):
+    if reason is None:
+        await ctx.send(f'{ctx.author.mention}, please provide a reason for banning')
+    else:
+        try:
+            await member.ban(reason=reason)
+            dm = f'You have been banned from {ctx.guild.name} for {reason}'
+            await member.send(dm)
+            await ctx.message.send(f'{member} has been successfully banned')
+        except Forbidden:
+            await ctx.send("Bitch pls. You thought")
+
+
+@bot.command()
+@commands.has_any_role('Head Meow in Charge (Admin)', 'Meow King (Owner)', 'Meow Control (Mod)')
+async def unban(ctx, member: discord.Member, *, reason=None):
+    if reason is None:
+        await ctx.send(f'{ctx.author.mention}, please provide a reason for unbanning')
+    else:
+        await member.unban(reason=reason)
+        await ctx.message.send(f'{member} has been successfully unbanned')
+
+
+@bot.command()
+@commands.has_any_role('Head Meow in Charge (Admin)', 'Meow King (Owner)', 'Meow Control (Mod)')
+async def mute(ctx, member: discord.Member):
+    server = bot.get_guild(guild_id)
+    timeout = int(os.getenv("timeout_role"))
+    timeout_role = server.get_role(timeout)
+    for role in member.roles:
+        await member.remove_roles(role)
+    await member.add_roles(timeout_role)
+    await ctx.send(f'{member} has been successfully muted')
+
+
+@bot.command()
+async def avatar(ctx, member: discord.Member):
+    if member is None:
+        await ctx.send(f'Please tag a user.')
+    else:
+        embed = discord.Embed(title='Bearcat Avatar Showcase', description=f'**{member}**',
+                              color=discord.Colour.blue())
+        embed.set_image(url=member.avatar_url)
+        embed.set_footer(text=f'Today at {datetime.now().strftime("%I:%M %p")}')
+        await ctx.message.channel.send(content=None, embed=embed)
+
+
+@bot.command()
+async def enlarge(ctx, emoji: discord.Emoji):
+    await ctx.send(emoji.url)
+
+
+@bot.command()
+async def approve(ctx, member: discord.Member):
+    server = bot.get_guild(guild_id)
+    entry_role = server.get_role(meow_id)
+    member_role = server.get_role(member_id)
+    if member is None:
+        pass
+    else:
+        try:
+            await member.remove_roles(entry_role)
+            await member.add_roles(member_role)
+            await ctx.send(f'{member.display_name} has been approved')
+        except HTTPException:
+            await ctx.send('Something has failed. I desire a sacrifice')
+
+
+@bot.command()
+async def math(ctx):
+    await ctx.send("Two plus two is four minus one, that's three, quick maths")
+
+
+@bot.event
 async def on_member_join(member):
-    print(member.guild.channels)
-    for channel in member.guild.channels:
-        if str(channel) == '🚪-front-door':
-            await channel.send(f'Welcome {member.mention}, tell us about yourself and how you found our '
-                                       f'server.')
+    global mods
+    server = bot.get_guild(guild_id)
+    mods = server.get_role(mods)
+    entry_role = server.get_role(meow_id)
+    try:
+        await member.add_roles(entry_role)
+        for channel in member.guild.channels:
+            if str(channel) == '🚪-front-door':
+                await asyncio.sleep(3)
+                await channel.send(f'Welcome {member.mention}, plase tell us about yourself and how you found our '
+                                   f'server. A {mods.mention} will be with you to let you in momentatily. \n \n **Note:'
+                                   f' We are not veterinarians and cannot provide sound medical advice for your cat. '
+                                   f'If this is an emergency, please contact your veterinarian ASAP.**')
 
-    # elif message.content == '!d bump' and message.channel == terminal:
-    #     print(f'Message of: {message.content} at {message.created_at}')
-    #     successful_bump_times = []
-    #     async for msg in terminal.history(limit=25):
-    #         if msg.embeds == []:
-    #             continue
-    #         elif isinstance(msg.embeds[0].description, str):
-    #             if "Bump done" in msg.embeds[0].description:
-    #                 successful_bump_times.append(msg.created_at)
-    #                 successful_bump = max(successful_bump_times)
-    #                 if successful_bump:
-    #                   await asyncio.sleep(60 * 60 * 2)
-    #                   await terminal.send(f'Reminder to bump server. Command for this is !d bump.'
-    #                                         f' cc <@{meowking}>, <@{mathman}>, @<{erebus}>, @<{haagen}>')
+    except AttributeError:
+        await asyncio.sleep(3)
+        await channel.send(f'Welcome, plase tell us about yourself and how you found our server. A {mods.mention} will '
+                           f'be with you to let you in momentatily. \n \n **Note: We are not veterinarians and cannot '
+                           f'provide sound medical advice for your cat. If this is an emergency, please contact your '
+                           f'veterinarian ASAP.**')
+        print("User is invisible")
 
-# @client.event
-# async def on_member_update(before, after):
-#     global general
-#     general = client.get_channel(general)
-#     if before.id == best_dog:
-#         if not after.status == 'offline':
-#             dog = 'http://24.media.tumblr.com/adc13162b265b7721f7efd5c7d12035f/tumblr_n0ooo4msyo1toamj8o1_250.gif'
-#             await general.send(dog)
 
-client.run(bot_token)
+@bot.event
+async def on_member_update(before, after):
+    role_log = int(os.getenv('role_log'))
+    role_channel = bot.get_channel(role_log)
+    if before.roles != after.roles:
+        roles_before = [role.name for role in before.roles]
+        roles_after = [role.name for role in after.roles]
+        if len(before.roles) < len(after.roles):
+            diff = [role for role in roles_after if role not in roles_before]
+            await role_channel.send(f"A role for {before.name} has been added. Role added is {''.join(diff)}")
+        else:
+            diff = [role for role in roles_before if role not in roles_after]
+            await role_channel.send(f"A role for {before.name} has been removed. Role removed is {''.join(diff)}")
+
+@bot.command()
+async def call_mods(ctx):
+    server = bot.get_guild(guild_id)
+    mods = server.get_role(581921256920842241)
+    await ctx.channel.send(f'Test call for {mods.mention}')
+
+bot.run(bot_token)
